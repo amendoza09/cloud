@@ -2,35 +2,7 @@ import { useState } from "react";
 import AddMember from "./AddMember";
 import Member from './Member';
 
-const members = [
-    {
-        name: "toni",
-        color: "green",
-        events: [
-            {
-                title: "work",
-                startDate: "12-31-2025",
-                endDate: "12-31-2025",
-                startTime: "8:30 AM",
-                endTime: "5:30 PM"
-            }
-        ]
-    },
-    {
-        name: "jordan",
-        color: "blue",
-        events: [
-            {
-                title: "nanny",
-                startDate: "12-31-2025",
-                endDate: "12-31-2025",
-                startTime: "10 AM",
-                endTime: "4 PM"
-            }
-        ]
-    }
-]
-const Sidebar = () => {
+const Sidebar = ({ members }) => {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [memberOpen, setMemberOpen] = useState(false);
     const [selectedMember, setSelectedMember] = useState(null);

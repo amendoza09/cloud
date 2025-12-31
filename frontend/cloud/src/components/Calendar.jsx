@@ -1,40 +1,11 @@
 import WeeklyView from "./Weekly"
 import MonthlyView from "./Monthly"
 
-
-const members = [
-    {
-        name: "toni",
-        color: "green",
-        events: [
-            {
-                title: "work",
-                startDate: "2025-12-31",
-                endDate: "2025-12-31",
-                startTime: "8:30 AM",
-                endTime: "5:30 PM"
-            }
-        ]
-    },
-    {
-        name: "jordan",
-        color: "blue",
-        events: [
-            {
-                title: "nanny",
-                startDate: "2025-12-25",
-                endDate: "2025-12-25",
-                startTime: "10 AM",
-                endTime: "4 PM"
-            }
-        ]
-    }
-]
-
-const Calendar = () => {
+const Calendar = ({ members }) => {
     return(
-        <div className="h-screen flex">
-            <MonthlyView members={members}/>
+        <div className="flex flex-col w-[calc(100vw-10rem)] h-screen">
+            <WeeklyView members={members} />
+            {/* <MonthlyView members={members}/> */}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { format, startOfMonth, startOfWeek, endOfWeek, endOfMonth, eachDayOfInterval, 
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, 
   addMonths, subMonths, getDay } from 'date-fns';
 
 const MonthlyView = ({ members }) => {
@@ -35,11 +35,7 @@ const MonthlyView = ({ members }) => {
     return fullMonthDays;
   };
   
-  const generateWeekDays = (date) => {
-    const startOfSelectedWeek = startOfWeek(date, { weekStartsOn: 0 });
-    const endOfSelectedWeek = endOfWeek(date, { weekStartsOn: 0 });
-    return eachDayOfInterval({ start: startOfSelectedWeek, end: endOfSelectedWeek });
-  };
+  
 
   const handleDayPress = (day) => {
     const formatDate = format(day, 'yyyy-MM-dd');
@@ -101,7 +97,7 @@ const MonthlyView = ({ members }) => {
       <div className="grid grid-cols-7 gap-5 text-center px-2 border-b border-black-500">
         {dayAbrevs.map((day, index) => {
           return (
-            <div key={index} className="h-[80px] flex items-center justify-center font-medium">
+            <div key={index} className="h-full flex items-center justify-center font-medium">
               <p>{day}</p>
             </div>
           )
@@ -120,9 +116,9 @@ const MonthlyView = ({ members }) => {
           const isToday = formatDate === currentDate;
 
           return (
-              <div
+            <div
                 key = {formatDate}
-                className={`h-full w-full px-10 flex relative cursor-pointer border-black
+                className={`h-full w-full px-5 relative cursor-pointer border-black
                   ${isSelected ? 'bg-blue-400' : 'text-black'}
                   ${isToday ? 'border border-blue-500' : ''}
                 `}
@@ -133,19 +129,21 @@ const MonthlyView = ({ members }) => {
                   {format(item, 'd')}
                 </span>
 
-                {/* formatted events */}
-                  <div className="flex flex-col">
-                    {eventsByDate[formatDate]?.map((event, j) => {
+                {/* events */}
+                  <div className="flex flex-col mt-8 gap-1">
+                    {eventsByDate[formatDate]?.map((event, j) => (
                       <div 
                         key={j} 
-                        className="text-xs bg-gray-200 rounded px-1 truncate"
+                        className="text-xs bg-gray-200 rounded px-1 truncate h-8 items-center flex justify-center"
                         style={{ backgroundColor: event.memberColor, color: 'white' }}
                       >
-                        {event.memberName}: {event.title} ({event.startTime} - {event.endTime})
+                        {event.title} ({event.startTime} - {event.endTime})
                       </div>
-                    })}
+                    ))}
                   </div>
-              </div>
+
+                  {/* add event button */}
+            </div>
           )
         })}
       </div>
