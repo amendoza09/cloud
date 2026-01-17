@@ -1,5 +1,4 @@
 import axios from "axios";
-import { io } from "socket.io-client";
 
 const API_URL = "https://cloud-ktc9.onrender.com";
 

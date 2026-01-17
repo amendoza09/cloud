@@ -1,14 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import GroupCodeScreen from './components/GroupCode';
 import Calendar from './components/Calendar';
 import Sidebar from './components/Sidebar';
-import { io } from "socket.io-client"; 
 
 import { GiHamburgerMenu } from "react-icons/gi";
 
 import { getGroupByCode, createGroup} from './api';
-
-const socket = io(import.meta.env.API_URL);
 
 function App() {
   const [members, setMembers] = useState([]);
@@ -16,6 +13,7 @@ function App() {
   const [loadingJoin, setLoadingJoin] = useState(false);
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const wsRef = useRef(null);
 
   const enterGroup = async(code) => {
     const data = await getGroupByCode(code);
@@ -74,16 +72,38 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if(!groupCode) return;
+  if (!groupCode) return;
 
-    socket.emit("join-group",groupCode);
-    socket.on("group-updated", refresh)
+  const ws = new WebSocket(
+      `wss://cloud-ktc9.onrender.com/ws/group/${groupCode}`
+    );
+
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+
+      if (message.type === "group-updated") {
+        refresh();
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket disconnected");
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
 
     return () => {
-      socket.off("group-updated", refresh);
-      socket.emit("leave-group", groupCode);
-    }
-  }, [groupCode, refresh])
+      ws.close();
+    };
+  }, [groupCode, refresh]);
 
   if(!groupCode) {
     return (
