@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
@@ -8,13 +8,41 @@ from models import User
 from models import Event
 from pydantic import BaseModel
 from datetime import datetime, timedelta, time
-from typing import Optional
+from typing import Optional, Dict, List
 from dotenv import load_dotenv
-import socketio
 
 import string
 import random
 
+class ConnectionManager:
+    def __init(self):
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+        
+    async def connect(self, groupCode: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.setdefault(groupCode, []).append(websocket) 
+    
+    def disconnect(self, groupCode: str, websocket: WebSocket):
+        self.active_connections[groupCode].remove(websocket)
+        if not self.active_connections[groupCode]:
+            del self.active_connections[groupCode]
+    
+    async def broadcast(self, groupCode: str, message: dict):
+        for ws in self.active_connections.get(groupCode, []):
+            await ws.send_json(message)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/group/{group_code}")
+async def websocket_endpoint(websocket: WebSocket, group_code: str):
+    await manager.connect(group_code, websocket)
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(group_code, websocket)
+        
 load_dotenv()
 API_URL = os.getenv("API_URL")
 HOST_URL = os.getenv("HOST_URL")
@@ -126,7 +154,7 @@ class EventCreate(BaseModel):
     notes: str | None = None
 
 @app.post("/members/{user_id}/events")
-def add_event(user_id: int, event: EventCreate, db: Session = Depends(get_db)):
+async def add_event(user_id: int, event: EventCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="user not found")
@@ -162,12 +190,12 @@ def add_event(user_id: int, event: EventCreate, db: Session = Depends(get_db)):
         current_day += timedelta(days=1)
 
     db.commit()
-
+    
     # Refresh all new events
     for e in created_events:
         db.refresh(e)
 
-    return [
+    payload = [
         {
             "event_id": e.id,
             "title": e.title,
@@ -179,10 +207,18 @@ def add_event(user_id: int, event: EventCreate, db: Session = Depends(get_db)):
         }
         for e in created_events
     ]
+    await manager.broadcast(
+        group_code = user.group.code,
+        message = {
+            "type": "event_created",
+            "data": payload
+        }
+    )
+    return payload
 
 # remove an event
 @app.delete("/members/{user_id}/events/{event_id}")
-def delete_event(user_id: int, event_id: int, db: Session = Depends(get_db)):
+async def delete_event(user_id: int, event_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
@@ -198,6 +234,16 @@ def delete_event(user_id: int, event_id: int, db: Session = Depends(get_db)):
     
     db.delete(event)
     db.commit()
+    
+    await manager.broadcast(
+        user.group.code,
+        {
+            "type": "event_deleted",
+            "event_id": event_id,
+            "user_id": user_id
+        }
+    )
+    
     return("event deleted")
 
 # remove a user
@@ -222,7 +268,7 @@ class UpdateEvent(BaseModel):
     user_id: Optional[int] | None = None
     
 @app.patch("/members/{user_id}/events/{event_id}")
-def update_event(
+async def update_event(
         user_id: int,
         event_id: str,
         payload: UpdateEvent,
@@ -243,6 +289,21 @@ def update_event(
 
     db.commit()
     db.refresh(event)
+    
+    await manager.broadcast(
+        user.group.code,
+        {
+            "type": "event_updated",
+            "data": {
+                "event_id": event.id,
+                "title": event.title,
+                "start_time": event.start_time.isoformat(),
+                "end_time": event.end_time.isoformat(),
+                "notes": event.notes,
+                "is_task": event.is_task
+            }
+        }
+    )
 
     return {
         "user_id": user_id,
