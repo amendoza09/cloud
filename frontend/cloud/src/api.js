@@ -1,7 +1,15 @@
 import axios from "axios";
+import { io } from "socket.io-client";
 
-const API = axios.create({
-  baseURL: "https://cloud-ktc9.onrender.com",
+const API_URL = "https://cloud-ktc9.onrender.com";
+
+export const API = axios.create({
+  baseURL: API_URL,
+});
+
+export const socket = io(API_URL, {
+  transports: ["websocket"],
+  autoConnect: false,
 });
 
 export const getGroupByCode = async (groupCode) => {
